@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic-Tac-Toe Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        /* Custom styles for the game */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0d1117;
+            overflow: hidden;
+        }
+
+        /* Aurora Background Effect */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 10% 20%, rgba(34, 211, 238, 0.2), transparent 40%),
+                        radial-gradient(circle at 80% 70%, rgba(168, 85, 247, 0.2), transparent 40%);
+            animation: aurora 15s linear infinite;
+            z-index: -1;
+        }
+
+        @keyframes aurora {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Glassmorphism Effect */
+        .glass-card {
+            background: rgba(17, 24, 39, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Cell Hover Effect */
+        .cell:not(.x):not(.o):hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        /* Base styles for the pseudo-elements that will form X and O */
+        .cell::before,
+        .cell::after {
+            content: '';
+            position: absolute;
+            border-radius: 9999px; /* rounded-full */
+        }
+
+        /* X and O Styles with Glow */
+        .cell.x::before, .cell.x::after {
+            background-color: #22d3ee;
+            box-shadow: 0 0 8px #22d3ee, 0 0 16px #22d3ee;
+        }
+        .cell.o::before {
+            border-color: #facc15;
+            box-shadow: 0 0 8px #facc15, 0 0 16px #facc15;
+        }
+        
+        /* Styles for the X mark */
+        .cell.x::before, .cell.x::after {
+            width: 0;
+            height: 0.6rem; 
+        }
+        .cell.x::before { transform: rotate(45deg); }
+        .cell.x::after { transform: rotate(-45deg); }
+
+        /* Styles for the O mark */
+        .cell.o::before {
+            width: 0;
+            height: 0;
+            border-width: 0.6rem;
+        }
+        
+        /* Animation for drawing X and O */
+        .cell.x::before, .cell.x::after {
+            animation: drawX 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+        .cell.o::before {
+            animation: drawO 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+
+        @keyframes drawX {
+            0% { width: 0; }
+            100% { width: calc(100% - 24px); }
+        }
+
+        @keyframes drawO {
+            0% { width: 0; height: 0; }
+            100% { width: calc(100% - 24px); height: calc(100% - 24px); }
+        }
+
+        /* Winning Line Canvas */
+        #line-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+        
+        /* Modal & Entrance Animations */
+        @keyframes slideInDown {
+            from { transform: translateY(-30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes zoomIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .animate-slide-in { animation: slideInDown 0.6s ease-out forwards; }
+        .animate-zoom-in { animation: zoomIn 0.6s ease-out 0.2s forwards; }
+
+        .modal-enter {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+
+        .modal-leave {
+            animation: fadeOut 0.3s ease-in forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; transform: scale(1); }
+            to { opacity: 0; transform: scale(0.95); }
+        }
+
+    </style>
+</head>
+<body class="text-white flex items-center justify-center min-h-screen p-4">
+
+    <main id="game-container" class="w-full max-w-md mx-auto">
+        <h1 class="text-5xl md:text-6xl font-black mb-2 text-center text-slate-100 animate-slide-in opacity-0">
+            Tic-Tac-Toe
+        </h1>
+        
+        <!-- Scoreboard -->
+        <div class="flex justify-center gap-8 my-6 text-center animate-slide-in opacity-0" style="animation-delay: 0.1s;">
+            <div>
+                <p class="text-xl font-bold text-cyan-400">Player X</p>
+                <p id="score-x" class="text-4xl font-black">0</p>
+            </div>
+            <div>
+                <p class="text-xl font-bold text-amber-400">Player O</p>
+                <p id="score-o" class="text-4xl font-black">0</p>
+            </div>
+        </div>
+
+        <!-- Game Board -->
+        <div id="board-container" class="relative animate-zoom-in opacity-0">
+            <div id="board" class="grid grid-cols-3 gap-3 p-3 rounded-2xl glass-card shadow-2xl">
+                <!-- Cells generated by JS -->
+            </div>
+            <canvas id="line-canvas"></canvas>
+        </div>
+
+        <!-- Status & Restart -->
+        <div class="mt-6 text-center animate-zoom-in opacity-0" style="animation-delay: 0.3s;">
+            <div id="status" class="text-xl h-8 mb-4 text-slate-400"></div>
+            <button id="restartButton" class="group flex items-center justify-center gap-2 mx-auto px-6 py-3 bg-slate-700 text-slate-300 font-semibold rounded-lg shadow-lg hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-opacity-50 transition-all transform hover:scale-105">
+                <svg class="w-5 h-5 transition-transform group-hover:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M4 4l16 16"></path></svg>
+                New Game
+            </button>
+        </div>
+    </main>
+
+    <!-- Result Modal -->
+    <div id="modal" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-20">
+        <div id="modal-content" class="glass-card rounded-lg shadow-xl p-8 text-center max-w-sm mx-auto">
+            <h2 id="modal-message" class="text-3xl font-bold mb-6 text-slate-100"></h2>
+            <button id="play-again-button" class="w-full px-8 py-3 bg-cyan-500 text-white font-semibold rounded-lg shadow-lg hover:bg-cyan-600 focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-opacity-50 transition-transform transform hover:scale-105">
+                Play Again
+            </button>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+        // --- DOM Elements ---
+        const boardContainer = document.getElementById('board-container');
+        const board = document.getElementById('board');
+        const statusDisplay = document.getElementById('status');
+        const restartButton = document.getElementById('restartButton');
+        const modal = document.getElementById('modal');
+        const modalContent = document.getElementById('modal-content');
+        const modalMessage = document.getElementById('modal-message');
+        const playAgainButton = document.getElementById('play-again-button');
+        const scoreXDisplay = document.getElementById('score-x');
+        const scoreODisplay = document.getElementById('score-o');
+        const canvas = document.getElementById('line-canvas');
+        const ctx = canvas.getContext('2d');
+
+        // --- Game State Variables ---
+        let gameActive = true;
+        let currentPlayer = 'X';
+        let gameState = ["", "", "", "", "", "", "", "", ""];
+        let scores = { X: 0, O: 0 };
+
+        const winningConditions = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+            [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+            [0, 4, 8], [2, 4, 6]             // Diagonals
+        ];
+
+        // --- Game Logic ---
+        function initializeBoard() {
+            board.innerHTML = '';
+            gameState.fill("");
+            gameActive = true;
+            currentPlayer = 'X';
+            statusDisplay.textContent = `Player ${currentPlayer}'s turn`;
+            hideModal();
+            clearCanvas();
+            
+            for (let i = 0; i < 9; i++) {
+                const cell = document.createElement('div');
+                cell.dataset.cellIndex = i;
+                cell.className = 'cell w-full h-24 md:h-32 bg-slate-800/50 rounded-lg flex items-center justify-center cursor-pointer relative transition duration-300';
+                cell.addEventListener('click', handleCellClick);
+                board.appendChild(cell);
+            }
+        }
+
+        function handleCellClick(e) {
+            const clickedCell = e.currentTarget;
+            const clickedCellIndex = parseInt(clickedCell.dataset.cellIndex);
+
+            if (gameState[clickedCellIndex] !== "" || !gameActive) return;
+
+            handleCellPlayed(clickedCell, clickedCellIndex);
+            handleResultValidation();
+        }
+
+        function handleCellPlayed(clickedCell, clickedCellIndex) {
+            gameState[clickedCellIndex] = currentPlayer;
+            clickedCell.classList.add(currentPlayer.toLowerCase());
+            clickedCell.style.pointerEvents = 'none';
+        }
+
+        function handleResultValidation() {
+            let roundWon = false;
+            let winningLine = [];
+
+            for (let i = 0; i < winningConditions.length; i++) {
+                const winCondition = winningConditions[i];
+                const [a, b, c] = winCondition.map(index => gameState[index]);
+
+                if (a === '' || b === '' || c === '') continue;
+                if (a === b && b === c) {
+                    roundWon = true;
+                    winningLine = winCondition;
+                    break;
+                }
+            }
+
+            if (roundWon) {
+                gameActive = false;
+                scores[currentPlayer]++;
+                updateScoreboard();
+                drawWinningLine(winningLine);
+                setTimeout(() => showModal(`Player ${currentPlayer} Wins!`), 800);
+                return;
+            }
+
+            if (!gameState.includes("")) {
+                gameActive = false;
+                showModal("It's a Draw!");
+                return;
+            }
+
+            currentPlayer = currentPlayer === "X" ? "O" : "X";
+            statusDisplay.textContent = `Player ${currentPlayer}'s turn`;
+        }
+
+        function updateScoreboard() {
+            scoreXDisplay.textContent = scores.X;
+            scoreODisplay.textContent = scores.O;
+        }
+
+        function showModal(message) {
+            modalMessage.textContent = message;
+            modal.classList.remove('hidden');
+            modalContent.classList.add('modal-enter');
+        }
+
+        function hideModal() {
+            if (modal.classList.contains('hidden')) return;
+            modalContent.classList.add('modal-leave');
+            modalContent.addEventListener('animationend', () => {
+                modal.classList.add('hidden');
+                modalContent.classList.remove('modal-leave');
+            }, { once: true });
+        }
+
+        // --- Canvas Drawing ---
+        function drawWinningLine(line) {
+            const cells = Array.from(board.children);
+            const startCell = cells[line[0]].getBoundingClientRect();
+            const endCell = cells[line[2]].getBoundingClientRect();
+            const containerRect = boardContainer.getBoundingClientRect();
+
+            // Set canvas dimensions
+            canvas.width = containerRect.width;
+            canvas.height = containerRect.height;
+
+            const startX = startCell.left + startCell.width / 2 - containerRect.left;
+            const startY = startCell.top + startCell.height / 2 - containerRect.top;
+            const endX = endCell.left + endCell.width / 2 - containerRect.left;
+            const endY = endCell.top + endCell.height / 2 - containerRect.top;
+
+            ctx.strokeStyle = currentPlayer === 'X' ? '#22d3ee' : '#facc15';
+            ctx.lineWidth = 8;
+            ctx.lineCap = 'round';
+            ctx.shadowColor = ctx.strokeStyle;
+            ctx.shadowBlur = 15;
+            
+            let progress = 0;
+            function animateLine() {
+                if (progress > 1) return;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.beginPath();
+                ctx.moveTo(startX, startY);
+                ctx.lineTo(startX + (endX - startX) * progress, startY + (endY - startY) * progress);
+                ctx.stroke();
+                progress += 0.05;
+                requestAnimationFrame(animateLine);
+            }
+            animateLine();
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // --- Event Listeners ---
+        restartButton.addEventListener('click', initializeBoard);
+        playAgainButton.addEventListener('click', initializeBoard);
+        window.addEventListener('resize', clearCanvas); // Clear line on resize
+
+        // --- Initial Game Start ---
+        initializeBoard();
+    });
+    </script>
+</body>
+</html>
