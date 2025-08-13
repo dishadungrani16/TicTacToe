@@ -3,7 +3,7 @@ A modern, visually appealing Tic-Tac-Toe game built with HTML, CSS (using Tailwi
 
 ## Live Demo
 
-Play the game live on Netlify\! [**[Link to your Netlify site here]**](https://www.google.com/search?q=https://your-netlify-site-name.netlify.app) 🎮
+Play the game live on Netlify\! [**[https://tictactoe-disha.netlify.app/]**](https://www.google.com/search?q=https://your-netlify-site-name.netlify.app) 🎮
 
 -----
 
